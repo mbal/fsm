@@ -1,26 +1,37 @@
+(define (filter predicate list)
+  (define (helper list acc)
+    (cond ((null? list) acc)
+          ((predicate (car list)) (helper (cdr list) (cons (car list) acc)))
+          (else (helper (cdr list) acc))))
+  (helper list '()))
+
 (define-syntax create-fsm2
   (syntax-rules ()
     ((create-fsm name (state transitions ...) ...)
      (define name
-       (begin
-         (define state
-           (process-state2 state transitions ...)) ...)))))
+       (letrec 
+         ((state 
+            (process-state2 transitions ...)) ...)
+         (get-first '(state ...)))))))
 
-(define (loop s n)
-  (cond ((null? s) #f)
-        ((equal? (car s) n) #t)
-        (else (loop (cdr s) n))))
+(define (check-not-outgoing-transitions states transitions)
+  (syntax-error transitions))
 
-(define-syntax check
-  (syntax-rules ()
-    ((check states trans)
-     (if (not (foldl ands #t
-                     (map (lambda (x) (loop states x)) trans)))
-       (syntax-error "anoanoanoa")
-       #t))))
+(define (get-first states) (car states))
 
-(define (ands a b)
-  (and a b))
+(define (check states transitions)
+  (define (not-in? list what)
+    (cond ((null? list) what)
+          ((equal? (car list) what) #f)
+          (else (not-in? (cdr list) what))))
+
+  (let ((offending-transitions 
+          (filter (lambda (x) x)
+                  (map (lambda (x) (not-in? states x)) transitions))))
+    (if (not (equal? offending-transitions '()))
+      (syntax-error "The following transitions go out of this fsm" 
+                    offending-transitions)
+      #t)))
 
 (define-syntax process-state2
   (syntax-rules (-> end)
@@ -28,11 +39,11 @@
      (lambda (in)
        (cond ((null? in) #t)
              (else #f))))
-    ((_ (states ...) (input -> next callback ...) ...)
-     (lambda (in)
-       (check '(states ...) '(next ...))
-       (cond ((null? in) #f)
-             ((equal? (car in) 'input) 
-              (callback in) ...
-              (next (cdr in))) ...
-             (else #f))))))
+    ((_ (input -> next callback ...) ...)
+     (begin 
+       (lambda (in)
+         (cond ((null? in) #f)
+               ((equal? (car in) 'input) 
+                (callback in) ...
+                (next (cdr in))) ...
+               (else #f)))))))
