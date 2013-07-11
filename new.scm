@@ -10,17 +10,28 @@
     ((create-fsm name (state transitions ...) ...) 
      (create-fsm "grouped"  ;; so we can actually match the second pattern, 
                             ;; and not this again
+                 #f        ;; don't check
                  name 
                  (state ...) ;; the list of all states in the fsm
                  ((state transitions ...) ...)))
-    ((create-fsm "grouped" name states ((state transitions ...) ...))
+    ((create-fsm check? name (state transitions ...) ...)
+     (create-fsm "grouped" 
+                 check? 
+                 name 
+                 (state ...) 
+                 ((state transitions ...) ...)))
+    ((create-fsm "grouped" check? name states ((state transitions ...) ...))
      ;; this pattern matches when called recursively from the previous one
      ;; we use another definition so we can group the states without
      ;; using let (since (state ...) instead of states down there it's
      ;; forbidden due to too many ....
      (define name
        (letrec 
-         ((state (process-state2 state #t states transitions ...)) ...)
+         ((state (process-state2 
+                   state ;; current state (needed only for error reporting)
+                   check?  ;; check the transitions
+                   states  ;; list of all the states
+                   transitions ...)) ...)
          (get-first state ...))))))
 
 ;; returns the first state that has been declared. It will be used as
@@ -91,8 +102,8 @@
               (else #f))))))
 
 
-(create-fsm2 test
-             (A (a -> A)
-                (b -> B (lambda (in) (display in))))
-             (B (c -> C))
-             (C end))
+(create-fsm test
+            (A (a -> A)
+               (b -> B (lambda (in) (display in))))
+            (B (c -> C))
+            (C end))
