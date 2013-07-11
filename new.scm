@@ -5,45 +5,94 @@
           (else (helper (cdr list) acc))))
   (helper list '()))
 
-(define-syntax create-fsm2
+(define-syntax create-fsm
   (syntax-rules ()
-    ((create-fsm name (state transitions ...) ...)
+    ((create-fsm name (state transitions ...) ...) 
+     (create-fsm "grouped"  ;; so we can actually match the second pattern, 
+                            ;; and not this again
+                 name 
+                 (state ...) ;; the list of all states in the fsm
+                 ((state transitions ...) ...)))
+    ((create-fsm "grouped" name states ((state transitions ...) ...))
+     ;; this pattern matches when called recursively from the previous one
+     ;; we use another definition so we can group the states without
+     ;; using let (since (state ...) instead of states down there it's
+     ;; forbidden due to too many ....
      (define name
        (letrec 
-         ((state 
-            (process-state2 transitions ...)) ...)
-         (get-first '(state ...)))))))
+         ((state (process-state2 state #t states transitions ...)) ...)
+         (get-first state ...))))))
 
-(define (check-not-outgoing-transitions states transitions)
-  (syntax-error transitions))
+;; returns the first state that has been declared. It will be used as
+;; starting state.
+(define-syntax get-first
+  (syntax-rules ()
+    ((get-first state states ...) state)))
 
-(define (get-first states) (car states))
+(begin-for-syntax
+ ;; returns all the transitions that are outgoing (i.e. refers to a state
+ ;; which is not declared in the FSM)
+ ;; (get-outward-transitions (a -> B)) if B is not a FSM state, returns B.
+ ;; if a FSM does have one or more outgoing transitions, it's invalid
+ ;; and it's rejected at compile-time (if the check is enabled).
 
-(define (check states transitions)
-  (define (not-in? list what)
-    (cond ((null? list) what)
-          ((equal? (car list) what) #f)
-          (else (not-in? (cdr list) what))))
+ (define (get-outward-transitions states transitions)
+   ;; this function returns false when the item is in the list, 
+   ;; returns the item if it's present.
+   (define (not-in? list what)
+     (cond ((null? list) what)
+           ((equal? (car list) what) #f)
+           (else (not-in? (cdr list) what))))
+   (filter (lambda (x) x) (map (lambda (x) (not-in? states x)) transitions))))
 
-  (let ((offending-transitions 
-          (filter (lambda (x) x)
-                  (map (lambda (x) (not-in? states x)) transitions))))
-    (if (not (equal? offending-transitions '()))
-      (syntax-error "The following transitions go out of this fsm" 
-                    offending-transitions)
-      #t)))
+;;; I'm quite satisfied with this macro.
+(define-syntax checked-expander
+  (ir-macro-transformer
+   (lambda (data ren cmp)
+     (let* ((statename (cadr data)) ; the first element is the macro's name
+            (states (caddr data)) ; the args after that are the actual params
+            (transitions (cdddr data))
+            (offending-transitions
+             (get-outward-transitions states (map cadr transitions))))
+       (if (equal? offending-transitions '())
+           `(lambda (in)
+              (cond ((null? in) #f)
+                    ,@(map
+                       (lambda (x)
+                         `((equal? (car in) ',(car x))
+                           ,@(if (>= (length x) 3)
+                                 (map (lambda (y) `(,y in)) (cddr x))
+                                 '())
+                           (,(cadr x) (cdr in))))
+                       transitions)
+                    (else #f)))
+           (syntax-error statename
+                         "Transitions go out of the FSM"
+                         offending-transitions))))))
 
 (define-syntax process-state2
   (syntax-rules (-> end)
-    ((_ end)
+    ((_ statename _ states end)
      (lambda (in)
        (cond ((null? in) #t)
              (else #f))))
-    ((_ (input -> next callback ...) ...)
-     (begin 
-       (lambda (in)
-         (cond ((null? in) #f)
-               ((equal? (car in) 'input) 
-                (callback in) ...
-                (next (cdr in))) ...
-               (else #f)))))))
+    ((_ statename #t states (input -> next callback ...) ...)
+     ;; here we are going to perform a check. We need a "common lisp" macro
+     ;; because we need lower level control on the generated code.
+     ;; However, we use an ir-* macro since we care about hygene.
+      (checked-expander statename states (input next callback ...) ...))
+    ((_ statename #f states (input -> next callback ...) ...)
+     ;; this clause doesn't perform a validity check for the outgoing states
+     (lambda (in)
+       (cond ((null? in) #f)
+             ((equal? (car in) 'input) 
+              (callback in) ...
+              (next (cdr in))) ...
+              (else #f))))))
+
+
+(create-fsm2 test
+             (A (a -> A)
+                (b -> B (lambda (in) (display in))))
+             (B (c -> C))
+             (C end))
