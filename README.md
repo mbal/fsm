@@ -22,9 +22,25 @@ You can also add callbacks to states. For example:
     
     (N (0 -> Y) (1 -> N (lambda (in) (display "going to Y state") (newline))))
 
-A transition can have 0 or more callbacks: they are called sequentially, in the same order. A callback is a unary function, with the remaining input string as argument.
+A transition can have 0 or more callbacks: they are called sequentially, in the same order. A callback is a unary function, with the input string as argument.
 
-A FSM can also be checked at compile time for the validity (i.e. all the transitions are to another FSM state).
+Features
+--------------------
+
+1. optional __compile time__ checks. If enabled, the library checks for transitions that are not defined or that are outside of the FSM. Such as:
+
+        ;; note the #t as first argument, if omitted, no check is performed.
+        (create-fsm #t fsm (A (b -> map))) ==> compile time error, `map' isn't a state of this FSM
+        (create-fsm #t fsm (A (b -> C)) (B end)) ==> compile time error, state `C' isn't defined.
+
+This controls are completely performed at compile time, so the runtime performance will not be affected.
+
+2. Callbacks. Every transition can have 0 or more function that will be called sequentially *before* the transition (like a Mealy machine).
+
+3. Can be used with every data type that can be compared with `equal?`
+
+4. Efficient implementations with tail calls.
+
 
 Tests
 --------------------
