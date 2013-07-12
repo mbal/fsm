@@ -1,6 +1,6 @@
 (module test (run-all)
   (import r5rs)
-  (import new)
+  (import fsm)
   (import chicken)
 
   ;; this test checks that the most basic form works: transitions,
@@ -60,4 +60,6 @@
     (test-1)
     (test-2)
     (test-3)
-    (test-4)))
+    (test-4)
+    (display "Test passed"))
+  )

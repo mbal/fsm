@@ -1,4 +1,4 @@
-(module new (create-fsm)
+(module fsm (create-fsm)
   (import r5rs)
 
   (define-syntax create-fsm
