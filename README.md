@@ -29,7 +29,7 @@ Features
 
 1. optional __compile time__ checks. If enabled, the library checks for transitions that are not defined or that are outside of the FSM. Such as:
 
-        ;; note the #t as first argument, if omitted, no check is performed.
+        ;; note the #t as first argument, if omitted (or #f), no check is performed.
         (create-fsm #t fsm (A (b -> map))) ==> compile time error, `map' isn't a state of this FSM
         (create-fsm #t fsm (A (b -> C)) (B end)) ==> compile time error, state `C' isn't defined.
 
