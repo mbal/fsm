@@ -15,14 +15,18 @@ A simple FSM to check whether a binary number is even.
     (even? '(0 1 0)) ==> #t
     (even? '(1 1)) ==>   #f
 
-As you can see, we defined a state N, with two outgoing arrows, the first transition is enabled when the input is 0, and goes to the Y state, the second is enabled on 1, and loops back to N.
-Y is defined in the same way, but it's marked as final state, with the `end` keyword: the only difference with N is here: when the FSM has read the whole string and is in a state marked with `end`, it outputs #t. If the automata reads the whole string and isn't in a final state, it outputs #f.
+In this example, we defined a FSM with 2 states: N, and Y, both with two outgoing arrows. 
+In N the first transition is enabled when the input is 0, and goes to the Y state, 
+the second is enabled on 1, and loops back to N.
+Y is defined in the same way, but it's marked as final state, with the `end` keyword: when the FSM has read
+the whole string and is in a accept state, it outputs #t. In all the other situations, it outputs #f.
 
 You can also add callbacks to states. For example:
     
     (N (0 -> Y) (1 -> N (lambda (in) (display "going to Y state") (newline))))
 
-A transition can have 0 or more callbacks: they are called sequentially, in the same order. A callback is a unary function, with the input string as argument.
+A transition can have 0 or more callbacks: they are called sequentially, in the same order. 
+A callback is a unary function, with the input string as argument.
 
 Features
 --------------------
@@ -33,7 +37,7 @@ Features
         (create-fsm #t fsm (A (b -> map))) ==> compile time error, `map' isn't a state of this FSM
         (create-fsm #t fsm (A (b -> C)) (B end)) ==> compile time error, state `C' isn't defined.
 
-This controls are completely performed at compile time, so the runtime performance will not be affected.
+    This controls are completely performed at compile time, so the runtime performance will not be affected.
 
 2. Callbacks. Every transition can have 0 or more function that will be called sequentially *before* the transition (like a Mealy machine).
 
